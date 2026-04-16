@@ -56,7 +56,7 @@ export function FormRegistrasi({ onSubmit }: FormRegistrasiProps) {
 
     try {
       // 3. Mantra Supabase: Kirim data ke tabel_arsip di database
-      const { data, error } = await supabase
+      const { data: _data, error } = await supabase
         .from('tabel_arsip')
         .insert([
           {
