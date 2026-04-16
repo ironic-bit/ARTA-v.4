@@ -15,6 +15,7 @@ import type { Arsip } from "@/types/arsip";
 import { KODE_KLASIFIKASI, JENIS_NASKAH, KLASIFIKASI_KEAMANAN, KETERANGAN_RETENSI, STATUS_ARSIP } from "@/types/arsip";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, Cloud, Lock, Shield, FileText } from "lucide-react";
+import { supabase } from "./supabaseClient";
 
 interface FormRegistrasiProps {
   onSubmit: (arsip: Omit<Arsip, "id" | "tanggalRegistrasi">) => void;
@@ -40,28 +41,74 @@ export function FormRegistrasi({ onSubmit }: FormRegistrasiProps) {
     linkCloud: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canCreate) return;
-    onSubmit({
+
+    // 1. Ambil nama pembuat
+    const pembuat = user?.nama || "Unknown";
+
+    // 2. Siapkan data untuk update UI lokal web Anda
+    const arsipBaru = {
       ...formData,
-      registeredBy: user?.nama || "Unknown",
-    });
-    setFormData({
-      kodeKlasifikasi: "",
-      nomorSurat: "",
-      judul: "",
-      jenisNaskah: "",
-      klasifikasiKeamanan: "B",
-      tahun: new Date().getFullYear(),
-      tanggalSurat: new Date().toISOString().split("T")[0],
-      deskripsi: "",
-      retensiAktif: 2,
-      retensiInaktif: 1,
-      keteranganRetensi: "Musnah",
-      statusArsip: "Aktif",
-      linkCloud: "",
-    });
+      registeredBy: pembuat,
+    };
+
+    try {
+      // 3. Mantra Supabase: Kirim data ke tabel_arsip di database
+      const { data, error } = await supabase
+        .from('tabel_arsip')
+        .insert([
+          {
+            kode_klasifikasi: formData.kodeKlasifikasi,
+            nomor_surat: formData.nomorSurat,
+            judul: formData.judul,
+            jenis_naskah: formData.jenisNaskah,
+            klasifikasi_keamanan: formData.klasifikasiKeamanan,
+            tahun: formData.tahun,
+            tanggal_surat: formData.tanggalSurat,
+            deskripsi: formData.deskripsi,
+            retensi_aktif: formData.retensiAktif,
+            retensi_inaktif: formData.retensiInaktif,
+            keterangan_retensi: formData.keteranganRetensi,
+            status_arsip: formData.statusArsip,
+            link_cloud: formData.linkCloud,
+            registered_by: pembuat
+          }
+        ]);
+
+      if (error) {
+        console.error("Supabase Error:", error);
+        alert("Gagal menyimpan ke database: " + error.message);
+        return; // Hentikan proses jika gagal
+      }
+
+      // 4. Jika berhasil masuk Database, jalankan update tampilan tabel web
+      onSubmit(arsipBaru);
+
+      // 5. Kosongkan isian form kembali ke pengaturan awal
+      setFormData({
+        kodeKlasifikasi: "",
+        nomorSurat: "",
+        judul: "",
+        jenisNaskah: "",
+        klasifikasiKeamanan: "B",
+        tahun: new Date().getFullYear(),
+        tanggalSurat: new Date().toISOString().split("T")[0],
+        deskripsi: "",
+        retensiAktif: 2,
+        retensiInaktif: 1,
+        keteranganRetensi: "Musnah",
+        statusArsip: "Aktif",
+        linkCloud: "",
+      });
+
+      alert("Data Arsip berhasil diamankan ke Database!");
+
+    } catch (err) {
+      console.error("Unexpected Error:", err);
+      alert("Terjadi kesalahan sistem saat menyimpan data.");
+    }
   };
 
   // Jika tidak punya akses create, tampilkan pesan
